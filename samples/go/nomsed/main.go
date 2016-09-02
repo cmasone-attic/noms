@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -91,7 +92,7 @@ func main() {
 		}
 	})
 
-	outDS.CommitValue(newMap)
+	outDS.Commit(newMap, dataset.CommitOptions{Meta: inDS.Head().Get(datas.MetaField).(types.Struct)})
 }
 
 func getMapStructType(t *types.Type) (st *types.Type, ok bool) {
