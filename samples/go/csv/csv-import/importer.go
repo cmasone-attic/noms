@@ -45,6 +45,7 @@ func main() {
 	destType := flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the index position (0-based) of the column that is a the unique identifier for the column")
 	skipRecords := flag.Uint("skip-records", 0, "number of records to skip at beginning of file")
 	performCommit := flag.Bool("commit", true, "commit the data to head of the dataset (otherwise only write the data to the dataset)")
+	append := flag.Bool("append", false, "append new data to list at head of specified dataset.")
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
@@ -66,6 +67,8 @@ func main() {
 		err = errors.New("Cannot specify both <csvfile> and a noms path with -p")
 	case flag.NArg() > 2:
 		err = errors.New("Too many arguments")
+	case strings.HasPrefix(*destType, "map") && *append:
+		err = errors.New("--append is only compatible with list imports")
 	}
 	d.CheckError(err)
 
@@ -177,6 +180,14 @@ func main() {
 	if *performCommit {
 		meta, err := spec.CreateCommitMetaStruct(ds.Database(), "", "", additionalMetaInfo(filePath, *path), nil)
 		d.CheckErrorNoUsage(err)
+		if *append {
+			if headVal, present := ds.MaybeHeadValue(); present {
+				l, isList := headVal.(types.List)
+				d.PanicIfFalse(isList)
+				ref := db.WriteValue(value)
+				value = l.Concat(ref.TargetValue(db).(types.List))
+			}
+		}
 		_, err = db.Commit(ds, value, datas.CommitOptions{Meta: meta})
 		if !*noProgress {
 			status.Clear()
